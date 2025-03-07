@@ -79,6 +79,8 @@ class SmartglassConsoleList(CamelCaseModel):
 
 
 class SmartglassConsoleStatus(CamelCaseModel):
+    id: str
+    name: str
     power_state: PowerState
     console_streaming_enabled: bool
     digital_assistant_remote_control_enabled: bool
@@ -181,7 +183,25 @@ class InputKeyType(str, Enum):
     Left = "Left"
     Right = "Right"
     Nexus = "Nexus"
-
+    
+    """
+        DPadUp,
+        DPadDown,
+        DPadLeft,
+        DPadRight,
+        Start,
+        Back,
+        LeftThumbstick,
+        RightThumbstick,
+        LeftShoulder,
+        RightShoulder,
+        Guide,
+        Unknown,
+        A,
+        B,
+        X,
+        Y
+    """
 
 class GuideTab(str, Enum):
     Guide = "Guide"

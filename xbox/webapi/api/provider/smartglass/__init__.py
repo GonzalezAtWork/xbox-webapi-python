@@ -98,6 +98,7 @@ class SmartglassProvider(BaseProvider):
         url = f"{self.SG_URL}/consoles/{device_id}"
         resp = await self.client.session.get(url, headers=self.HEADERS_SG, **kwargs)
         resp.raise_for_status()
+        print(resp.json())
         return SmartglassConsoleStatus(**resp.json())
 
     async def get_op_status(
@@ -145,7 +146,48 @@ class SmartglassProvider(BaseProvider):
         return await self._send_one_shot_command(
             device_id, "Power", "TurnOff", **kwargs
         )
+        
+        
+    async def sign_out(self, device_id: str, **kwargs) -> CommandResponse:
+        """
+        Sign Off Current account in Console
 
+        Args:
+            device_id: ID of console (from console list)
+
+        Returns: Command Response
+        """
+        return await self._send_one_shot_command(
+            device_id, "Shell", "SignOut", **kwargs
+        )
+        
+    async def sign_in(self, device_id: str, **kwargs) -> CommandResponse:
+        """
+        Sign In Current account in Console
+
+        Args:
+            device_id: ID of console (from console list)
+
+        Returns: Command Response
+        """
+        return await self._send_one_shot_command(
+            device_id, "Shell", "SignIn", **kwargs
+        )
+        
+    async def terminate_app(self, device_id: str, **kwargs) -> CommandResponse:
+        """
+        TerminateApplication Current app in Console
+
+        Args:
+            device_id: ID of console (from console list)
+
+        Returns: Command Response
+        """
+        return await self._send_one_shot_command(
+            device_id, "Shell", "TerminateApplication", **kwargs
+        )
+        
+        
     async def reboot(self, device_id: str, **kwargs) -> CommandResponse:
         """
         Reboot Console
@@ -295,6 +337,22 @@ class SmartglassProvider(BaseProvider):
         return await self._send_one_shot_command(
             device_id, "Shell", "InjectKey", params, **kwargs
         )
+        
+    async def press_button_new(
+        self, device_id: str, button: str, **kwargs
+    ) -> CommandResponse:
+        """
+        Press Button
+
+        Args:
+            device_id: ID of console (from console list)
+
+        Returns: Command Response
+        """
+        params = [{"keyType": button}]
+        return await self._send_one_shot_command(
+            device_id, "Shell", "InjectKey", params, **kwargs
+        )        
 
     async def insert_text(self, device_id: str, text: str, **kwargs) -> CommandResponse:
         """
