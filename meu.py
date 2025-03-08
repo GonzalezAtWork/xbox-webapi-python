@@ -2,8 +2,8 @@ import os
 import sys
 import asyncio
 import json
+import threading
 import time
-import subprocess
 
 from httpx import HTTPStatusError
 from urllib.parse import parse_qs
@@ -18,12 +18,32 @@ sys.path.insert(0, os.path.dirname(__file__))
 client_id = CLIENT_ID
 client_secret = CLIENT_SECRET
 
-last_activity_time = time.time() 
-INACTIVITY_TIMEOUT = 600
+def restart_script():
+    print("No connections for 10 minutes. Restarting script...")
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+class WatchdogTimer:
+    def __init__(self, timeout, callback):
+        self.timeout = timeout
+        self.callback = callback
+        self.timer = None
+        self.reset()
+
+    def reset(self):
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(self.timeout, self.callback)
+        self.timer.start()
+
+    def stop(self):
+        if self.timer:
+            self.timer.cancel()    
+
+watchdog = WatchdogTimer(600, restart_script) 
 
 def application(environ, start_response):
-    global last_activity_time
-    last_activity_time = time.time()
+    global watchdog
+    watchdog.reset()
 
     query_string = environ.get('QUERY_STRING', '')
     params = parse_qs(query_string)
@@ -112,7 +132,7 @@ async def async_main(device, command, params):
             )
             sys.exit(-1)
         with open(tokens_file, mode="w") as f:
-            f.write(auth_mgr.oauth.json())
+            f.write(auth_mgr.oauth.model_dump_json())
 
         xbl_client = XboxLiveClient(auth_mgr)
         
@@ -136,17 +156,4 @@ async def async_main(device, command, params):
             status = await xbl_client.smartglass.launch_app(device, params)
 
         return status
-
-async def reset_if_inactive():
-    global last_activity_time
-    while True:
-        await asyncio.sleep(60)  # Check every minute
-        if time.time() - last_activity_time > INACTIVITY_TIMEOUT:
-            print("No connections for 10 minutes. Restarting script...")
-            os.execv(sys.executable, [sys.executable] + sys.argv)  # Restart script
-
-async def update_last_activity():
-    global last_activity_time
-    last_activity_time = time.time()
-
-asyncio.run(reset_if_inactive())
+    

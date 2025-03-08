@@ -2,7 +2,10 @@ import os
 import sys
 import asyncio
 import json
+import threading
+import time
 
+from wsgiref.simple_server import make_server
 from httpx import HTTPStatusError
 from urllib.parse import parse_qs
 from xbox.webapi.api.client import XboxLiveClient
@@ -16,7 +19,33 @@ sys.path.insert(0, os.path.dirname(__file__))
 client_id = CLIENT_ID
 client_secret = CLIENT_SECRET
 
+def restart_script():
+    print("No connections for 10 minutes. Restarting script...")
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+class WatchdogTimer:
+    def __init__(self, timeout, callback):
+        self.timeout = timeout
+        self.callback = callback
+        self.timer = None
+        self.reset()
+
+    def reset(self):
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(self.timeout, self.callback)
+        self.timer.start()
+
+    def stop(self):
+        if self.timer:
+            self.timer.cancel()    
+
+watchdog = WatchdogTimer(30, restart_script) 
+
 def application(environ, start_response):
+    global watchdog
+    watchdog.reset()
+
     query_string = environ.get('QUERY_STRING', '')
     params = parse_qs(query_string)
     device = params.get('device', [''])[0]
@@ -104,7 +133,7 @@ async def async_main(device, command, params):
             )
             sys.exit(-1)
         with open(tokens_file, mode="w") as f:
-            f.write(auth_mgr.oauth.json())
+            f.write(auth_mgr.oauth.model_dump_json())
 
         xbl_client = XboxLiveClient(auth_mgr)
         
@@ -128,3 +157,9 @@ async def async_main(device, command, params):
             status = await xbl_client.smartglass.launch_app(device, params)
 
         return status
+    
+if __name__ == '__main__':
+    port = 8000
+    with make_server('', port, application) as httpd:
+        print(f"Serving on http://localhost:{port}/")
+        httpd.serve_forever()
